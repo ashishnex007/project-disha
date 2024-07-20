@@ -12,8 +12,11 @@ import { Circle as CircleStyle, Fill, Stroke, Style } from 'ol/style';
 import Overlay from 'ol/Overlay';
 import "ol/ol.css";
 import OSM from "ol/source/OSM";
-import { Container, Form, Toast } from "react-bootstrap";
 import { fromLonLat, toLonLat } from 'ol/proj';
+
+import { AudioManager } from "../components/AudioManager";
+import Transcript from "../components/Transcript";
+import { useTranscriber } from "../hooks/useTranscriber";
 
 const MapComponent = ({ zoom, statesLayerVisible, districtsLayerVisible, center, showParks }) => {
   const mapRef = useRef();
@@ -204,32 +207,39 @@ const MapComponent = ({ zoom, statesLayerVisible, districtsLayerVisible, center,
 
 const Controls = ({ statesLayerVisible, setStatesLayerVisible, districtsLayerVisible, setDistrictsLayerVisible, showParks, setShowParks }) => {
   return (
-    <Form className="d-flex gap-4">
-      <Form.Check
-        className="py-2"
-        type="checkbox"
-        checked={statesLayerVisible}
-        id="States"
-        onChange={(e) => setStatesLayerVisible(e.target.checked)}
-        label="States"
-      />
-      <Form.Check
-        className="py-2"
-        type="checkbox"
-        id="Districts"
-        checked={districtsLayerVisible}
-        onChange={(e) => setDistrictsLayerVisible(e.target.checked)}
-        label="Districts"
-      />
-      <Form.Check
-        className="py-2"
-        type="checkbox"
-        id="Parks"
-        checked={showParks}
-        onChange={(e) => setShowParks(e.target.checked)}
-        label="Show Parks"
-      />
-    </Form>
+    <form className="d-flex gap-4">
+  <div className="py-2">
+    <input 
+      type="checkbox" 
+      id="States" 
+      name="States" 
+      checked={statesLayerVisible} 
+      onChange={(e) => setStatesLayerVisible(e.target.checked)}
+    />
+    <label htmlFor="States">States</label>
+  </div>
+  <div className="py-2">
+    <input 
+      type="checkbox" 
+      id="Districts" 
+      name="Districts" 
+      checked={districtsLayerVisible} 
+      onChange={(e)=> setDistrictsLayerVisible(e.target.checked)}
+    />
+    <label htmlFor="Districts">Districts</label>
+  </div>
+  <div className="py-2">
+    <input 
+      type="checkbox" 
+      id="Parks" 
+      name="Parks" 
+      checked={showParks} 
+      onChange={(e)=> setShowParks(e.target.checked)}
+    />
+    <label htmlFor="Parks">Show Parks</label>
+  </div>
+</form>
+
   );
 };
 
@@ -278,12 +288,66 @@ export default function MapMain() {
   const [districtsLayerVisible, setDistrictsLayerVisible] = useState(false);
   const [center, setCenter] = useState([8700000, 2300000]);
   const [showParks, setShowParks] = useState(false);
+  const transcriber = useTranscriber();
+
+  const handleVoiceCommand = (command) => {
+    const lowerCommand = command.replace(/!/g, '').toLowerCase().trim();
+    
+    if (lowerCommand.includes("zoom in")) {
+      setZoom(prevZoom => Math.min(prevZoom + 1, 18));
+    } else if (lowerCommand.includes("zoom out")) {
+      setZoom(prevZoom => Math.max(prevZoom - 1, 1));
+    } else if (lowerCommand.includes("show states")) {
+      setStatesLayerVisible(true);
+    } else if (lowerCommand.includes("hide states")) {
+      setStatesLayerVisible(false);
+    } else if (lowerCommand.includes("show districts")) {
+      setDistrictsLayerVisible(true);
+    } else if (lowerCommand.includes("hide districts")) {
+      setDistrictsLayerVisible(false);
+    } else if (lowerCommand.includes("show parks")) {
+      setShowParks(true);
+    } else if (lowerCommand.includes("hide parks")) {
+      setShowParks(false);
+    } else if (lowerCommand.startsWith("go to")) {
+      const place = lowerCommand.replace("go to", "").trim();
+      handleGoTo(place);
+    }
+  };
+
+  // Function to handle "go to" commands
+  const handleGoTo = async (place) => {
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${place}`);
+      const data = await response.json();
+      if (data.length > 0) {
+        const [lon, lat] = [parseFloat(data[0].lon), parseFloat(data[0].lat)];
+        setCenter(fromLonLat([lon, lat]));
+        setZoom(12);
+      }
+    } catch (error) {
+      console.error("Error searching for place:", error);
+    }
+  };
+
+  // Effect to process transcription when it's available
+  useEffect(() => {
+    if (transcriber.output && transcriber.output.text) {
+      handleVoiceCommand(transcriber.output.text);
+    }
+  }, [transcriber.output]);
 
   return (
     <>
+      <div className='container flex flex-col justify-center items-center'>
+          <AudioManager transcriber={transcriber} />
+          <Transcript transcribedData={transcriber.output} />
+      </div>
       <SearchBar setCenter={setCenter} setZoom={setZoom} />
-      <button onClick={() => setZoom(9)}>9</button>
-      <button onClick={() => setZoom(0)}>0</button>
+      <div className="w-20 flex justify-between">
+        <button onClick={() => setZoom(zoom + 1)}>+</button>
+        <button onClick={() => setZoom(zoom - 1)}>-</button>
+      </div>
       <MapComponent
         zoom={zoom}
         statesLayerVisible={statesLayerVisible}
