@@ -18,6 +18,12 @@ import { AudioManager } from "../components/AudioManager";
 import Transcript from "../components/Transcript";
 import { useTranscriber } from "../hooks/useTranscriber";
 
+import {RMap, ROSM, RLayerVector, RFeature, ROverlay, RStyle} from 'rlayers';
+
+import "rlayers/control/layers.css";
+
+const origin = fromLonLat([2.364, 48.82]);
+
 const MapComponent = ({ zoom, statesLayerVisible, districtsLayerVisible, center, showParks }) => {
   const mapRef = useRef();
   const mapInstance = useRef();
@@ -290,12 +296,25 @@ export default function MapMain() {
   const [showParks, setShowParks] = useState(false);
   const transcriber = useTranscriber();
 
+  const [view, setView] = React.useState({ center: origin, zoom: 11 });
+
+  useEffect(() => {
+    // Check if responsiveVoice is available
+    if (typeof window.responsiveVoice === 'undefined') {
+      console.error('ResponsiveVoice is not available');
+    }else{
+      console.log('ResponsiveVoice is available');
+    }
+  }, []);
+
   const handleVoiceCommand = (command) => {
     const lowerCommand = command.replace(/!/g, '').toLowerCase().trim();
     
     if (lowerCommand.includes("zoom in")) {
+      window.responsiveVoice.speak("zooming in", "Hindi Female");
       setZoom(prevZoom => Math.min(prevZoom + 1, 18));
     } else if (lowerCommand.includes("zoom out")) {
+      window.responsiveVoice.speak("zooming out", "Hindi Female");
       setZoom(prevZoom => Math.max(prevZoom - 1, 1));
     } else if (lowerCommand.includes("show states")) {
       setStatesLayerVisible(true);
@@ -321,6 +340,7 @@ export default function MapMain() {
       const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${place}`);
       const data = await response.json();
       if (data.length > 0) {
+        window.responsiveVoice.speak(`going to ${place}`, "Hindi Female");
         const [lon, lat] = [parseFloat(data[0].lon), parseFloat(data[0].lat)];
         setCenter(fromLonLat([lon, lat]));
         setZoom(12);
@@ -344,10 +364,6 @@ export default function MapMain() {
           <Transcript transcribedData={transcriber.output} />
       </div>
       <SearchBar setCenter={setCenter} setZoom={setZoom} />
-      <div className="w-20 flex justify-between">
-        <button onClick={() => setZoom(zoom + 1)}>+</button>
-        <button onClick={() => setZoom(zoom - 1)}>-</button>
-      </div>
       <MapComponent
         zoom={zoom}
         statesLayerVisible={statesLayerVisible}
@@ -355,6 +371,30 @@ export default function MapMain() {
         center={center}
         showParks={showParks}
       />
+      <div className="w-full">
+        <RMap width={"100%"} height={"60vh"} initial={view} view={[view, setView]}>
+          <ROSM />
+        </RMap>
+        <div className="mx-0 mt-0 mb-3 p-1 w-100 jumbotron shadow d-flex flex-row justify-content-between">
+        <div>
+          Center is at
+          <strong className="mx-1">
+            {`${toLonLat(view.center)[1].toFixed(3)}° :
+                    ${toLonLat(view.center)[0].toFixed(3)}°`}
+          </strong>
+        </div>
+        <div>
+          Zoom level is{" "}
+          <strong className="mx-1">{Math.round(view.zoom)}</strong>
+        </div>
+        <div>
+          Resolution is
+          <strong className="mx-1">
+            {view.resolution && view.resolution.toFixed(2)}m/pixel
+          </strong>
+        </div>
+      </div>
+      </div>
       <Controls
         statesLayerVisible={statesLayerVisible}
         setStatesLayerVisible={setStatesLayerVisible}
