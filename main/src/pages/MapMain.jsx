@@ -8,46 +8,38 @@ import VectorSource from "ol/source/Vector";
 import Feature from 'ol/Feature';
 import Point from 'ol/geom/Point';
 import Polygon from 'ol/geom/Polygon';
-import { Circle as CircleStyle, Fill, Stroke, Style } from 'ol/style';
+import { Circle as CircleStyle, Fill, Stroke, Style, Icon } from 'ol/style';
 import Overlay from 'ol/Overlay';
 import "ol/ol.css";
 import OSM from "ol/source/OSM";
-import { fromLonLat, toLonLat } from 'ol/proj';
+import { fromLonLat, toLonLat, transform } from 'ol/proj';
+import LineString from 'ol/geom/LineString';
+import { Polyline } from 'ol/format';
 
 import { AudioManager } from "../components/AudioManager";
 import Transcript from "../components/Transcript";
 import { useTranscriber } from "../hooks/useTranscriber";
 
-import {RMap, ROSM, RLayerVector, RFeature, ROverlay, RStyle} from 'rlayers';
-
 import "rlayers/control/layers.css";
 
 const origin = fromLonLat([2.364, 48.82]);
 
-const MapComponent = ({ zoom, statesLayerVisible, districtsLayerVisible, center, showParks }) => {
+const MapComponent = ({ zoom, center, showParks, showNavigation }) => {
   const mapRef = useRef();
   const mapInstance = useRef();
   const parksLayer = useRef();
+  const navigationLayer = useRef();
   const hoverCardRef = useRef();
+
   const [hoverInfo, setHoverInfo] = useState(null);
+  const [startPoint, setStartPoint] = useState(undefined);
+  const [endPoint, setEndPoint] = useState(undefined);
+  const [route, setRoute] = useState(null);
+  const [startAddress, setStartAddress] = useState("");
+  const [endAddress, setEndAddress] = useState("");
 
   useEffect(() => {
     if (!mapInstance.current) {
-      const statesLayer = new VectorLayer({
-        source: new VectorSource({
-          url: "https://raw.githubusercontent.com/Subhash9325/GeoJson-Data-of-Indian-States/master/Indian_States",
-          format: new GeoJSON(),
-        }),
-        visible: statesLayerVisible,
-      });
-
-      const districtsLayer = new VectorLayer({
-        source: new VectorSource({
-          url: "https://raw.githubusercontent.com/geohacker/india/master/district/india_district.geojson",
-          format: new GeoJSON(),
-        }),
-        visible: districtsLayerVisible,
-      });
 
       parksLayer.current = new VectorLayer({
         source: new VectorSource(),
@@ -62,15 +54,28 @@ const MapComponent = ({ zoom, statesLayerVisible, districtsLayerVisible, center,
         }),
       });
 
+      navigationLayer.current = new VectorLayer({
+        source: new VectorSource(),
+        style: new Style({
+          image: new Icon({
+            anchor: [0.5, 1],
+            src: 'https://openlayers.org/en/latest/examples/data/icon.png'
+          }),
+          stroke: new Stroke({
+            color: 'blue',
+            width: 4
+          })
+        })
+      });
+
       mapInstance.current = new Map({
         target: mapRef.current,
         layers: [
           new TileLayer({
             source: new OSM(),
           }),
-          statesLayer,
-          districtsLayer,
           parksLayer.current,
+          navigationLayer.current,
         ],
         view: new View({
           center: center,
@@ -87,8 +92,7 @@ const MapComponent = ({ zoom, statesLayerVisible, districtsLayerVisible, center,
       });
       mapInstance.current.addOverlay(hoverCard);
 
-      // Add hover interaction
-      // Add hover interaction
+      // Add hover interaction for parks
       mapInstance.current.on('pointermove', (evt) => {
         const feature = mapInstance.current.forEachFeatureAtPixel(evt.pixel, (feature) => feature);
         if (feature && feature.get('name')) {
@@ -101,6 +105,36 @@ const MapComponent = ({ zoom, statesLayerVisible, districtsLayerVisible, center,
         } else {
           setHoverInfo(null);
           hoverCard.setPosition(undefined);
+        }
+      });
+
+      mapInstance.current.on('click', async(event) => {
+        const clickedCoord = event.coordinate;
+        console.log("Click detected at:", clickedCoord);
+        if (!startPoint) {
+          setStartPoint(clickedCoord);
+          console.log("Setting start point");
+          addMarker(clickedCoord, 'start');
+          const addr = await getAddress(clickedCoord);
+          console.log("Start address:", addr);
+          setStartAddress(addr);
+          console.log("start", startAddress);
+        } else if (endAddress === "") {
+          console.log("Setting end point");
+          setEndPoint(clickedCoord);
+          addMarker(clickedCoord, 'end');
+          const addr = await getAddress(clickedCoord);
+          console.log("End address:", addr);
+          setEndAddress(addr);
+          getRoute(startPoint, clickedCoord);
+        } else {
+          alert("Clearing route");
+          clearRoute();
+          setStartPoint(clickedCoord);
+          setEndPoint(null);
+          addMarker(clickedCoord, 'start');
+          getAddress(clickedCoord).then(setStartAddress);
+          setEndAddress("");
         }
       });
     }
@@ -117,18 +151,6 @@ const MapComponent = ({ zoom, statesLayerVisible, districtsLayerVisible, center,
       mapInstance.current.getView().setCenter(center);
     }
   }, [center]);
-
-  useEffect(() => {
-    if (mapInstance.current) {
-      mapInstance.current.getLayers().getArray()[1].setVisible(statesLayerVisible);
-    }
-  }, [statesLayerVisible]);
-
-  useEffect(() => {
-    if (mapInstance.current) {
-      mapInstance.current.getLayers().getArray()[2].setVisible(districtsLayerVisible);
-    }
-  }, [districtsLayerVisible]);
 
   useEffect(() => {
     if (showParks) {
@@ -190,62 +212,113 @@ const MapComponent = ({ zoom, statesLayerVisible, districtsLayerVisible, center,
       })
       .catch(error => {
         console.error('Error fetching parks:', error);
-        // You might want to add some user feedback here, e.g., a toast notification
       });
+  };
+
+  const handleNavigationClick = async(event) => {
+    
+  };
+
+  const addMarker = (coord, type) => {
+    const feature = new Feature({
+      geometry: new Point(coord),
+      type: type
+    });
+    
+    const style = new Style({
+      image: new Icon({
+        anchor: [0.5, 1],
+        src: type === 'start' ? 'path/to/start-icon.png' : 'path/to/end-icon.png',
+        scale: 0.5
+      })
+    });
+
+    feature.setStyle(style);
+    navigationLayer.current.getSource().addFeature(feature);
+  };
+
+  const getAddress = async (coord) => {
+    const lonLat = toLonLat(coord);
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lon=${lonLat[0]}&lat=${lonLat[1]}`);
+    const data = await response.json();
+    return data.display_name;
+  };
+
+  const getRoute = async (start, end) => {
+    const startLonLat = toLonLat(start);
+    const endLonLat = toLonLat(end);
+    const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${startLonLat[0]},${startLonLat[1]};${endLonLat[0]},${endLonLat[1]}?overview=full&geometries=polyline`);
+    const data = await response.json();
+    const route = new Polyline().readGeometry(data.routes[0].geometry, {
+      dataProjection: 'EPSG:4326',
+      featureProjection: 'EPSG:3857'
+    });
+    setRoute(route);
+    addRouteToMap(route);
+  };
+
+  const addRouteToMap = (route) => {
+    const routeFeature = new Feature({
+      geometry: route,
+      name: 'Route'
+    });
+    const routeStyle = new Style({
+      stroke: new Stroke({
+        color: 'blue',
+        width: 4
+      })
+    });
+    routeFeature.setStyle(routeStyle);
+    navigationLayer.current.getSource().addFeature(routeFeature);
+  };
+
+  const clearRoute = () => {
+    navigationLayer.current.getSource().clear();
+    setStartPoint(null);
+    setEndPoint(null);
+    setRoute(null);
+    setStartAddress("");
+    setEndAddress("");
   };
 
   return (
     <div style={{ position: 'relative', width: "100%", height: "500px" }}>
       <div ref={mapRef} style={{ width: "100%", height: "100%" }}></div>
-      <div ref={hoverCardRef} className="hover-card" style={{ display: hoverInfo ? 'block' : 'none' }}>
-        <div className="card">
-          <div className="card-header">
-            <strong>{hoverInfo?.name}</strong>
-          </div>
-          <div className="card-body">
-            <p>{hoverInfo?.description}</p>
+        <div ref={hoverCardRef} className="hover-card" style={{ display: hoverInfo ? 'block' : 'none' }}>
+          <div className="card">
+            <div className="card-header">
+              <strong>{hoverInfo?.name}</strong>
+            </div>
+            <div className="card-body">
+              <p>{hoverInfo?.description}</p>
+            </div>
           </div>
         </div>
-      </div>
+        {showNavigation && (
+          <div className="navigation-info" style={{ position: 'absolute', bottom: '10px', left: '10px', background: 'white', padding: '10px' }}>
+            <p><strong>Start:</strong> {startAddress}</p>
+            <p><strong>End:</strong> {endAddress}</p>
+            <button onClick={clearRoute}>Clear Route</button>
+          </div>
+        )}
     </div>
   );
 };
 
-const Controls = ({ statesLayerVisible, setStatesLayerVisible, districtsLayerVisible, setDistrictsLayerVisible, showParks, setShowParks }) => {
+const Controls = ({ showParks, setShowParks }) => {
   return (
     <form className="d-flex gap-4">
-  <div className="py-2">
-    <input 
-      type="checkbox" 
-      id="States" 
-      name="States" 
-      checked={statesLayerVisible} 
-      onChange={(e) => setStatesLayerVisible(e.target.checked)}
-    />
-    <label htmlFor="States">States</label>
-  </div>
-  <div className="py-2">
-    <input 
-      type="checkbox" 
-      id="Districts" 
-      name="Districts" 
-      checked={districtsLayerVisible} 
-      onChange={(e)=> setDistrictsLayerVisible(e.target.checked)}
-    />
-    <label htmlFor="Districts">Districts</label>
-  </div>
-  <div className="py-2">
-    <input 
-      type="checkbox" 
-      id="Parks" 
-      name="Parks" 
-      checked={showParks} 
-      onChange={(e)=> setShowParks(e.target.checked)}
-    />
-    <label htmlFor="Parks">Show Parks</label>
-  </div>
-</form>
-
+      <div className="py-2">
+        <input 
+          type="checkbox" 
+          id="Parks" 
+          name="Parks" 
+          checked={showParks} 
+          onChange={(e)=> setShowParks(e.target.checked)}
+        />
+        <label htmlFor="Parks">Show Parks</label>
+      </div>
+    </form>
   );
 };
 
@@ -290,13 +363,10 @@ const SearchBar = ({ setCenter, setZoom }) => {
 };
 export default function MapMain() {
   const [zoom, setZoom] = useState(4);
-  const [statesLayerVisible, setStatesLayerVisible] = useState(false);
-  const [districtsLayerVisible, setDistrictsLayerVisible] = useState(false);
-  const [center, setCenter] = useState([8700000, 2300000]);
+  const [center, setCenter] = useState(fromLonLat([78.9629, 20.5937]));
   const [showParks, setShowParks] = useState(false);
+  const [showNavigation, setShowNavigation] = useState(false);
   const transcriber = useTranscriber();
-
-  const [view, setView] = React.useState({ center: origin, zoom: 11 });
 
   useEffect(() => {
     // Check if responsiveVoice is available
@@ -334,6 +404,12 @@ export default function MapMain() {
     }
   };
 
+  useEffect(() => {
+    if (transcriber.output && transcriber.output.text) {
+      handleVoiceCommand(transcriber.output.text);
+    }
+  }, [transcriber.output]);
+
   // Function to handle "go to" commands
   const handleGoTo = async (place) => {
     try {
@@ -350,56 +426,23 @@ export default function MapMain() {
     }
   };
 
-  // Effect to process transcription when it's available
-  useEffect(() => {
-    if (transcriber.output && transcriber.output.text) {
-      handleVoiceCommand(transcriber.output.text);
-    }
-  }, [transcriber.output]);
-
   return (
     <>
       <div className='container flex flex-col justify-center items-center'>
           <AudioManager transcriber={transcriber} />
           <Transcript transcribedData={transcriber.output} />
       </div>
+
       <SearchBar setCenter={setCenter} setZoom={setZoom} />
       <MapComponent
         zoom={zoom}
-        statesLayerVisible={statesLayerVisible}
-        districtsLayerVisible={districtsLayerVisible}
         center={center}
         showParks={showParks}
+        showNavigation={true}
       />
       <div className="w-full">
-        <RMap width={"100%"} height={"60vh"} initial={view} view={[view, setView]}>
-          <ROSM />
-        </RMap>
-        <div className="mx-0 mt-0 mb-3 p-1 w-100 jumbotron shadow d-flex flex-row justify-content-between">
-        <div>
-          Center is at
-          <strong className="mx-1">
-            {`${toLonLat(view.center)[1].toFixed(3)}° :
-                    ${toLonLat(view.center)[0].toFixed(3)}°`}
-          </strong>
-        </div>
-        <div>
-          Zoom level is{" "}
-          <strong className="mx-1">{Math.round(view.zoom)}</strong>
-        </div>
-        <div>
-          Resolution is
-          <strong className="mx-1">
-            {view.resolution && view.resolution.toFixed(2)}m/pixel
-          </strong>
-        </div>
-      </div>
       </div>
       <Controls
-        statesLayerVisible={statesLayerVisible}
-        setStatesLayerVisible={setStatesLayerVisible}
-        districtsLayerVisible={districtsLayerVisible}
-        setDistrictsLayerVisible={setDistrictsLayerVisible}
         showParks={showParks}
         setShowParks={setShowParks}
       />
