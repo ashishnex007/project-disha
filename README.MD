@@ -10,19 +10,18 @@ Most customizable but heavy
 This is the flask implementation of whisper
 
 ### TODO
-- [] WebGL acceleration
-- [] ext state
-- [] overview
+- [] WebGL acceleration -> https://github.com/xenova/whisper-web/tree/experimental-webgpu
 - [] improve UI
-- [] proper latitude and longitude
 - [] drop a pin
 - [] my location
-- [] divide components
 - [] layers
-- [] from to , ETA, distance
-- [] from to, mode of transport
+- [] from to, mode of transport, add voice
 - [] POI (Point of interest) -> Ex. show me the petrol pumps between the highway from Hyderabd to Lucknow
 - [] login, signup, save locations
 - [] find UI
 ### Done
 - [x] Talkback
+- [x] divide components
+- [x] from to , ETA, distance
+- [x] proper latitude and longitude
+- [x] overview

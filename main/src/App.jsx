@@ -1,5 +1,7 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import MapMain from "./pages/MapMain";
+import Geolocation from "./components/maps/GeoLocation";
+// import Mapcamp from "./pages/Mapcamp";
 
 export default function App() {
 
@@ -11,6 +13,14 @@ export default function App() {
             index
             element={
                 <MapMain />
+            }
+          />
+        </Route>
+        <Route path="/location">
+          <Route
+            index
+            element={
+                <Geolocation />
             }
           />
         </Route>
