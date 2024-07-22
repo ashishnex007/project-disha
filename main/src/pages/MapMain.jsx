@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {AudioManager} from "../components/AudioManager";
 import Transcript from "../components/Transcript";
 import { useTranscriber } from "../hooks/useTranscriber";
@@ -6,8 +6,10 @@ import 'ol/ol.css';
 import { fromLonLat, toLonLat  } from 'ol/proj';
 import { LineString, Point } from "ol/geom";
 import { Polyline } from "ol/format";
+import XYZ from 'ol/source/XYZ';
+import { MVT } from "ol/format";
 
-import { RMap, ROSM, RLayerVector, RFeature } from "rlayers";
+import { RMap, ROSM, RLayerVector, RFeature, RLayerTile, RLayerVectorTile } from "rlayers";
 import { RStyle, RCircle, RFill, RStroke } from "rlayers/style";
 
 import { fillAddress, buildRoute } from "../utils/utils";
@@ -19,6 +21,7 @@ const Mapcamp = () => {
   const [view, setView] = React.useState({ center: origin, zoom: 3 });
   const [distance, setDistance] = React.useState(null);
   const [duration, setDuration] = React.useState(null);
+  const parser = useMemo(() => new MVT(), []);
 
   useEffect(() => {
     if (typeof window.responsiveVoice === 'undefined') {
@@ -124,6 +127,7 @@ const Mapcamp = () => {
         className="map"
         width="100%"
         height="400px"
+        // projection= 'EPSG:3857'
         view={[view, setView]}
         onClick={(e) => {
           const coords = e.map.getCoordinateFromPixel(e.pixel);
@@ -137,7 +141,47 @@ const Mapcamp = () => {
           }
         }}
       >
+        {/* <RLayerTile
+          source={new XYZ({
+            url: 'https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/MODIS_Terra_NDVI_8Day/default/2023-07-01/250m/{z}/{y}/{x}.png',
+            attributions: 'Imagery courtesy NASA EOSDIS Worldview',
+          })}
+        /> */}
+        {/* <RLayerTile
+          source={new XYZ({
+            url: 'https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/2023-07-01/250m/{z}/{y}/{x}.jpg',
+            attributions: 'Imagery courtesy NASA EOSDIS Worldview',
+          })}
+        /> */}
         <ROSM />
+
+        {/* // * NASA WW Vegetation */}
+        {/* <RLayerTile
+          properties={{ label: 'NASA World View - Vegetation' }}
+          url="https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/MODIS_Terra_NDVI_8Day/default/2023-07-01/250m/{z}/{y}/{x}.png"
+          attributions="Imagery courtesy NASA EOSDIS Worldview"
+        /> */}
+
+        {/* // * NASA WW Satellite */}
+        {/* <RLayerTile
+          properties={{ label: 'NASA World View - Satellite' }}
+          url="https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/2023-07-01/250m/{z}/{y}/{x}.jpg"
+          attributions="Imagery courtesy NASA EOSDIS Worldview"
+        /> */}
+
+        {/* 
+          // * weather layers
+          // * Clouds -> clouds_new
+          // * Precipitation -> precipitation_new
+          // * Sea level pressure -> pressure_new
+          // * Wind speed -> wind_new
+          // * Temperature -> temp_new 
+        */}
+        {/* <RLayerTile
+          properties={{ label: 'OpenWeatherMap' }}
+          url="https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=80aecfa13c9d93b97a677dd489483a21"
+          attributions="Weather data © OpenWeatherMap"
+        /> */}
         <RLayerVector>
           <RStyle>
             <RCircle radius={6}>
