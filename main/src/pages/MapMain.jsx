@@ -8,6 +8,8 @@ import { LineString, Point } from "ol/geom";
 import { Polyline } from "ol/format";
 import XYZ from 'ol/source/XYZ';
 import { MVT } from "ol/format";
+import VectorTileLayer from 'ol/layer/VectorTile';
+import VectorTileSource from 'ol/source/VectorTile';
 
 import { RMap, ROSM, RLayerVector, RFeature, RLayerTile, RLayerVectorTile } from "rlayers";
 import { RStyle, RCircle, RFill, RStroke } from "rlayers/style";
@@ -22,6 +24,7 @@ const Mapcamp = () => {
   const [distance, setDistance] = React.useState(null);
   const [duration, setDuration] = React.useState(null);
   const parser = useMemo(() => new MVT(), []);
+  const today = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     if (typeof window.responsiveVoice === 'undefined') {
@@ -141,19 +144,50 @@ const Mapcamp = () => {
           }
         }}
       >
-        {/* <RLayerTile
-          source={new XYZ({
-            url: 'https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/MODIS_Terra_NDVI_8Day/default/2023-07-01/250m/{z}/{y}/{x}.png',
-            attributions: 'Imagery courtesy NASA EOSDIS Worldview',
-          })}
-        /> */}
-        {/* <RLayerTile
-          source={new XYZ({
-            url: 'https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/2023-07-01/250m/{z}/{y}/{x}.jpg',
-            attributions: 'Imagery courtesy NASA EOSDIS Worldview',
-          })}
-        /> */}
         <ROSM />
+        {/* //! remember  */}
+        {/* //* https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Aqua_CorrectedReflectance_TrueColor/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg  */}
+
+        {/* <RLayerTile
+          properties={{ label: 'NASA Blue Marble' }}
+          url="https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpeg"
+          attributions="Imagery provided by services from the Global Imagery Browse Services (GIBS), operated by the NASA/GSFC/Earth Science Data and Information System (ESDIS) with funding provided by NASA/HQ."
+        /> */}
+
+        {/* // * Strava heatmap */}
+        {/* <RLayerTile
+          properties={{ label: '' }}
+          url='https://heatmap-external-a.strava.com/tiles/all/hot/{z}/{x}/{y}.png'
+          attributions="Imagery provided by services from the Global Imagery Browse Services (GIBS), operated by the NASA/GSFC/Earth Science Data and Information System (ESDIS) with funding provided by NASA/HQ."
+        /> */}
+
+        {/* // * BW */}
+        {/* <RLayerTile
+          properties={{ label: '' }}
+          url='https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/ASTER_GDEM_Greyscale_Shaded_Relief/default/GoogleMapsCompatible_Level12/{z}/{y}/{x}.jpg'
+          attributions="Imagery provided by services from the Global Imagery Browse Services (GIBS), operated by the NASA/GSFC/Earth Science Data and Information System (ESDIS) with funding provided by NASA/HQ."
+        /> */}
+
+        {/* // * Blue marble */}
+        {/* <RLayerTile
+          properties={{ label: '' }}
+          url='https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg'
+          attributions="Imagery provided by services from the Global Imagery Browse Services (GIBS), operated by the NASA/GSFC/Earth Science Data and Information System (ESDIS) with funding provided by NASA/HQ."
+        /> */}
+
+        {/* // * Satellite but no tear */}
+        {/* <RLayerTile
+          properties={{ label: '' }}
+          url='https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/2023-07-01/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg'
+          attributions="Imagery provided by services from the Global Imagery Browse Services (GIBS), operated by the NASA/GSFC/Earth Science Data and Information System (ESDIS) with funding provided by NASA/HQ."
+        /> */}
+
+        {/* // * random but looks sexy */}
+        {/* <RLayerTile
+          properties={{ label: '' }}
+          url="https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_Bands721/default/2023-07-01/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg"
+          attributions="Imagery provided by services from the Global Imagery Browse Services (GIBS), operated by the NASA/GSFC/Earth Science Data and Information System (ESDIS) with funding provided by NASA/HQ."
+        /> */}
 
         {/* // * NASA WW Vegetation */}
         {/* <RLayerTile
