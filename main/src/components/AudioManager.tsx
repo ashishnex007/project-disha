@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import Modal from "./modal/Modal";
 import { Transcriber } from "../hooks/useTranscriber";
 import Progress from "./Progress";
-import AudioRecorder from "./AudioRecorder";
 import RecordButton from "./RecordButton";
-import Spinner from './Spinner';
+import Lottie from 'react-lottie';
+import initialMic from "../assets/lotties/Initial mic.json";
+import micInUse from "../assets/lotties/mic - in use.json";
 
 function titleCase(str: string) {
     str = str.toLowerCase();
@@ -126,17 +127,42 @@ export enum AudioSource {
 
 export function AudioManager(props: { transcriber: Transcriber }) {
 
-    const [isTranscribing, setIsTranscribing] = useState(false);
+    const initialMicOptions = {
+        loop: true,
+        autoplay: true,
+        animationData: initialMic,
+        rendererSettings: {
+          preserveAspectRatio: "xMidYMid slice"
+        }
+    };
+
+    const micInUseOptions = {
+        loop: true,
+        autoplay: true,
+        animationData: micInUse,
+        rendererSettings: {
+          preserveAspectRatio: "xMidYMid slice"
+        }
+    };
 
     const handleRecordingComplete = async (buffer: AudioBuffer) => {
-        setIsTranscribing(true);
-        await props.transcriber.start(buffer); // ! FIX ME PLS
-        setIsTranscribing(false);
+        props.transcriber.start(buffer); // ! FIX ME PLS
     };
 
     return (
-        <>
-            <div className='flex flex-col justify-center items-center rounded-lg bg-white shadow-xl shadow-black/5 ring-1 ring-slate-700/10'>
+        <div className="flex items-center">
+            <Lottie
+                options={initialMicOptions}
+            />
+            <Lottie
+                options={micInUseOptions}
+            />
+            <SettingsTile
+                className='right-4'
+                transcriber={props.transcriber}
+                icon={<SettingsIcon />}
+            />
+            <div className='flex flex-col justify-center items-center'>
                 <div className='flex flex-row space-x-2 py-2 w-full px-2'>
                     {navigator.mediaDevices && (
                         <RecordButton onRecordingComplete={handleRecordingComplete} />
@@ -158,17 +184,7 @@ export function AudioManager(props: { transcriber: Transcriber }) {
                     ))}
                 </div>
             )}
-            {isTranscribing && (
-                <div className='flex justify-center items-center mt-4'>
-                    <Spinner text="Transcribing..." />
-                </div>
-            )}
-            <SettingsTile
-                className='absolute right-4'
-                transcriber={props.transcriber}
-                icon={<SettingsIcon />}
-            />
-        </>
+        </div>
     );
 }
 
@@ -332,17 +348,6 @@ function SettingsModal(props: {
             onClose={props.onClose}
             onSubmit={() => {}}
         />
-    );
-}
-
-function ProgressBar(props: { progress: string }) {
-    return (
-        <div className='w-full bg-gray-200 rounded-full h-1 dark:bg-gray-700'>
-            <div
-                className='bg-blue-600 h-1 rounded-full transition-all duration-100'
-                style={{ width: props.progress }}
-            ></div>
-        </div>
     );
 }
 

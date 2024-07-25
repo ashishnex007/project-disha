@@ -12,7 +12,7 @@ export default function Transcript({ transcribedData }: Props) {
             className='w-full flex flex-col my-2 p-4 max-h-[20rem] overflow-y-auto'
         >
             {transcribedData && (
-                <div className='w-full flex flex-row mb-2 bg-white rounded-lg p-4 shadow-xl shadow-black/5 ring-1 ring-slate-700/10'>
+                <div className='w-full flex flex-row p-4'>
                     {transcribedData.text}
                 </div>
             )}
