@@ -15,6 +15,7 @@ import { RMap, ROSM, RLayerVector, RFeature, RLayerTile, RLayerVectorTile } from
 import { RStyle, RCircle, RFill, RStroke } from "rlayers/style";
 
 import { fillAddress, buildRoute } from "../utils/utils";
+import Profile from '../components/Profile';
 
 const origin = fromLonLat([1.2, 1.3]);
 
@@ -23,14 +24,15 @@ const Mapcamp = () => {
   const [view, setView] = React.useState({ center: origin, zoom: 3 });
   const [distance, setDistance] = React.useState(null);
   const [duration, setDuration] = React.useState(null);
-  const parser = useMemo(() => new MVT(), []);
-  const today = new Date().toISOString().split('T')[0];
+  const greetingPlayedRef = useRef(false);
 
   useEffect(() => {
     if (typeof window.responsiveVoice === 'undefined') {
       console.error('ResponsiveVoice is not available');
-    }else{
+    }else if (!greetingPlayedRef.current){
       console.log('ResponsiveVoice is available');
+      window.responsiveVoice.speak("Hello! I'm Disha, your voice-enabled map assistant. How can I help you explore the world today?", "Hindi Female");
+      greetingPlayedRef.current = true;
     }
   }, []);
 
@@ -43,8 +45,10 @@ const Mapcamp = () => {
   }, [transcriber.output]);
 
   const handleVoiceCommand = (command) => {
+    if(command === " [BLANK_AUDIO]"){
+      window.responsiveVoice.speak("You didn't say anything, please toggle the voice icon again", "Hindi Female");
+    }
     const lowerCommand = command.replace(/!/g, '').toLowerCase().trim();
-    
     if (lowerCommand.includes("zoom in")) {
       window.responsiveVoice.speak("zooming in", "Hindi Female");
       const view = mapRef.current.ol.getView();
@@ -121,12 +125,16 @@ const Mapcamp = () => {
     <>
       <div>
         <div className="absolute flex z-10 bottom-[4px] h-20 items-center left-0 right-0 mx-auto w-[99vw] bg-gray-500 rounded-md bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 border border-gray-100">
-          <div className="w-1/4">
+          <div className="w-1/2">
             <AudioManager transcriber={transcriber} />
           </div>
-          <div className="w-3/4">
+          <div className="w-1/2">
             <Transcript transcribedData={transcriber.output} />
           </div>
+        </div>
+
+        <div className="absolute z-10 right-0 top-0 p-4">
+          <Profile />
         </div>
 
         <div className="w-full">
@@ -218,7 +226,7 @@ const Mapcamp = () => {
             */}
             {/* <RLayerTile
               properties={{ label: 'OpenWeatherMap' }}
-              url="https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=80aecfa13c9d93b97a677dd489483a21"
+              url="https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=80aecfa13c9d93b97a677dd489483a21"
               attributions="Weather data © OpenWeatherMap"
             /> */}
             <RLayerVector>

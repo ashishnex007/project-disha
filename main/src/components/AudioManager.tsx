@@ -1,11 +1,12 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Modal from "./modal/Modal";
 import { Transcriber } from "../hooks/useTranscriber";
 import Progress from "./Progress";
-import RecordButton from "./RecordButton";
 import Lottie from 'react-lottie';
 import initialMic from "../assets/lotties/Initial mic.json";
 import micInUse from "../assets/lotties/mic - in use.json";
+import { webmFixDuration } from "../utils/BlobFix";
+import { formatAudioTimestamp } from "../utils/AudioUtils";
 
 function titleCase(str: string) {
     str = str.toLowerCase();
@@ -126,6 +127,12 @@ export enum AudioSource {
 }
 
 export function AudioManager(props: { transcriber: Transcriber }) {
+    const [isRecording, setIsRecording] = useState(false);
+    const [duration, setDuration] = useState(0);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const chunksRef = useRef<Blob[]>([]);
+    const startTimeRef = useRef<number>(0);
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
 
     const initialMicOptions = {
         loop: true,
@@ -145,30 +152,101 @@ export function AudioManager(props: { transcriber: Transcriber }) {
         }
     };
 
-    const handleRecordingComplete = async (buffer: AudioBuffer) => {
-        props.transcriber.start(buffer); // ! FIX ME PLS
-    };
+    const getMimeType = useCallback(() => {
+        const types = ["audio/webm", "audio/mp4", "audio/ogg", "audio/wav", "audio/aac"];
+        for (let i = 0; i < types.length; i++) {
+            if (MediaRecorder.isTypeSupported(types[i])) {
+                return types[i];
+            }
+        }
+        return undefined;
+    }, []);
+
+    const startRecording = useCallback(async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mimeType = getMimeType();
+            const mediaRecorder = new MediaRecorder(stream, { mimeType });
+           
+            mediaRecorderRef.current = mediaRecorder;
+            chunksRef.current = [];
+            startTimeRef.current = Date.now();
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    chunksRef.current.push(event.data);
+                }
+            };
+            mediaRecorder.onstop = async () => {
+                const duration = Date.now() - startTimeRef.current;
+                let blob = new Blob(chunksRef.current, { type: mimeType });
+                if (mimeType === "audio/webm") {
+                    blob = await webmFixDuration(blob, duration, blob.type);
+                }
+                const arrayBuffer = await blob.arrayBuffer();
+                const audioContext = new AudioContext({ sampleRate: 16000 });
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+               
+                await props.transcriber.start(audioBuffer);
+            };
+            mediaRecorder.start();
+            setIsRecording(true);
+            startTimeRef.current = Date.now();
+            timerRef.current = setInterval(() => {
+                setDuration((prevDuration) => prevDuration + 1);
+            }, 1000);
+        } catch (error) {
+            console.error("Error accessing microphone:", error);
+        }
+    }, [getMimeType, props.transcriber]);
+
+    const stopRecording = useCallback(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+            setDuration(0);
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
+        }
+    }, []);
+
+    const toggleRecording = useCallback(() => {
+        if (isRecording) {
+            stopRecording();
+        } else {
+            startRecording();
+        }
+    }, [isRecording, startRecording, stopRecording]);
+
+    useEffect(() => {
+        return () => {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
+        };
+    }, []);
 
     return (
         <div className="flex items-center">
-            <Lottie
-                options={initialMicOptions}
-            />
-            <Lottie
-                options={micInUseOptions}
-            />
+
             <SettingsTile
-                className='right-4'
+                className='px-2'
                 transcriber={props.transcriber}
                 icon={<SettingsIcon />}
             />
-            <div className='flex flex-col justify-center items-center'>
-                <div className='flex flex-row space-x-2 py-2 w-full px-2'>
-                    {navigator.mediaDevices && (
-                        <RecordButton onRecordingComplete={handleRecordingComplete} />
-                    )}
-                </div>
+
+            <div onClick={toggleRecording}>
+                <Lottie
+                    options={isRecording ? micInUseOptions : initialMicOptions}
+                    height={80}
+                    width={120}
+                />
             </div>
+
+            <div className="text-center text-sm font-medium px-2">
+                {isRecording ? `Listening (${formatAudioTimestamp(duration)})` : 'Click on mic to start'}
+            </div>
+
             {props.transcriber.progressItems.length > 0 && (
                 <div className='relative z-10 p-4 w-full'>
                     <label>
@@ -359,7 +437,7 @@ function Tile(props: {
     return (
         <button
             onClick={props.onClick}
-            className='flex items-center justify-center rounded-lg p-2 bg-blue text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200'
+            className='flex items-center justify-center rounded-lg p-2 bg-blue text-slate-500 hover:text-indigo-600 transition-all duration-200'
         >
             <div className='w-7 h-7'>{props.icon}</div>
             {props.text && (

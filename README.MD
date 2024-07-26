@@ -14,13 +14,11 @@ https://github.com/geopandas/xyzservices/blob/main/provider_sources/xyzservices-
 
 ### TODO
 - [] WebGL acceleration -> https://github.com/xenova/whisper-web/tree/experimental-webgpu
-- [] improve UI
 - [] drop a pin
 - [] starting animation like OSM GPT
 - [] my location
 - [] POI (Point of interest) -> Ex. show me the petrol pumps between the highway from Hyderabd to Lucknow
 - [] login, signup, save locations
-- [] find UI
 - [] web synthesis for TTS
 - [] Date slider
 - [] custom options - https://nasa-gibs.github.io/gibs-api-docs/gis-usage/#esri-arcgis-online
@@ -34,5 +32,7 @@ https://github.com/geopandas/xyzservices/blob/main/provider_sources/xyzservices-
 - [x] proper latitude and longitude
 - [x] overview
 - [x] layers
+- [x] improve UI
+- [x] find UI
 ### Canceled
 - [] from to, mode of transport

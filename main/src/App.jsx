@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import MapMain from "./pages/MapMain";
-import Geolocation from "./components/maps/GeoLocation";
+import {LandingPage} from "./pages/LandingPage";
+import Auth from "./pages/Auth";
 // import Mapcamp from "./pages/Mapcamp";
 
 export default function App() {
@@ -16,11 +17,19 @@ export default function App() {
             }
           />
         </Route>
-        <Route path="/location">
+        <Route path="/landing">
           <Route
             index
             element={
-                <Geolocation />
+                <LandingPage />
+            }
+          />
+        </Route>
+        <Route path="/auth">
+          <Route
+            index
+            element={
+                <Auth />
             }
           />
         </Route>
